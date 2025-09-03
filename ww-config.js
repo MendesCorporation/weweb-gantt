@@ -121,4 +121,13 @@ export default {
       defaultValue: "semana",
     },
   },
+  triggerEvents: [
+    {
+      name: "onActivityClick",
+      label: {
+        en: "Activity Clicked",
+        pt: "Atividade Clicada"
+      }
+    }
+  ],
 };

@@ -19,16 +19,15 @@
         </button>
       </div>
       <div class="navigation-controls">
-        <button class="nav-btn" :style="navButtonStyles" @click="navegarTempo(-1)">‹</button>
+        <button class="nav-btn" :style="navButtonStyles" @click="navegarMes(-1)">‹</button>
         <span class="current-period" :style="{ color: content.corTexto }">{{ periodoAtual }}</span>
-        <button class="nav-btn" :style="navButtonStyles" @click="navegarTempo(1)">›</button>
-        <button class="nav-btn today-btn" :style="navButtonStyles" @click="irParaHoje">Hoje</button>
+        <button class="nav-btn" :style="navButtonStyles" @click="navegarMes(1)">›</button>
       </div>
     </div>
 
     <div class="gantt-header" :style="{ backgroundColor: content.corHeader, borderColor: content.corBorda }">
       <div class="users-column" :style="{ color: content.corTexto, borderColor: content.corBorda }">Usuários</div>
-      <div class="timeline-header" aria-label="Linha do tempo" ref="timelineHeader" @scroll="onTimelineScroll">
+      <div class="timeline-header" :style="{ backgroundColor: content.corFundo }" aria-label="Linha do tempo">
         <div class="time-markers" :style="{ width: `${timelineWidth}px` }">
           <div 
             v-for="marker in timeMarkers" 
@@ -47,7 +46,7 @@
         </div>
       </div>
     </div>
-    <div class="gantt-body" ref="ganttBody" @scroll="onBodyScroll">
+    <div class="gantt-body" ref="ganttBody">
       <div v-if="processedUsers.length === 0" class="empty-state" :style="{ color: content.corTexto }">
         <p>Nenhum usuário encontrado</p>
         <small>Verifique se os dados de usuários, atividades e projetos estão configurados corretamente.</small>
@@ -70,7 +69,8 @@
             class="user-timeline" 
             :style="{ 
               minHeight: `${Math.max(50, usuario.linhas.length * 30 + 10)}px`,
-              width: `${timelineWidth}px`
+              width: `${timelineWidth}px`,
+              backgroundColor: content.corFundo
             }"
           >
             <!-- Linhas verticais dos dias -->
@@ -159,26 +159,7 @@ export default {
     },
 
     periodoAtual() {
-      const modo = this.content.visualizacao || 'semana';
-      const data = this.currentDate;
-      
-      if (modo === 'dia') {
-        return data.toLocaleDateString('pt-BR', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        });
-      } else if (modo === 'semana') {
-        const inicioSemana = new Date(data);
-        inicioSemana.setDate(data.getDate() - data.getDay());
-        const fimSemana = new Date(inicioSemana);
-        fimSemana.setDate(inicioSemana.getDate() + 6);
-        
-        return `${inicioSemana.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${fimSemana.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`;
-      } else {
-        return data.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
-      }
+      return this.currentDate.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
     },
 
     processedUsers() {
@@ -264,24 +245,31 @@ export default {
     },
 
     timelineRange() {
-      const modo = this.content.visualizacao || 'semana';
-      const hoje = new Date();
-      const inicio = new Date(this.currentDate);
-      let fim = new Date(this.currentDate);
-
-      // Definir período baseado no modo de visualização
-      if (modo === 'dia') {
-        inicio.setDate(this.currentDate.getDate() - 15); // 15 dias antes
-        fim.setDate(this.currentDate.getDate() + 15); // 15 dias depois
-      } else if (modo === 'semana') {
-        inicio.setDate(this.currentDate.getDate() - 60); // 60 dias antes
-        fim.setDate(this.currentDate.getDate() + 60); // 60 dias depois
-      } else { // mês
-        inicio.setMonth(this.currentDate.getMonth() - 6); // 6 meses antes
-        fim.setMonth(this.currentDate.getMonth() + 6); // 6 meses depois
-      }
+      // Timeline sempre do dia 1 ao último dia do mês atual
+      const ano = this.currentDate.getFullYear();
+      const mes = this.currentDate.getMonth();
+      
+      const inicio = new Date(ano, mes, 1); // Primeiro dia do mês
+      const fim = new Date(ano, mes + 1, 0); // Último dia do mês
 
       return { inicio, fim };
+    },
+
+    scrollPosition() {
+      // Calcular posição de scroll para focar no dia atual com 7 dias para trás
+      const hoje = new Date();
+      const range = this.timelineRange;
+      
+      // Se hoje não está no mês atual, não fazer scroll
+      if (hoje.getMonth() !== this.currentDate.getMonth() || hoje.getFullYear() !== this.currentDate.getFullYear()) {
+        return 0;
+      }
+
+      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+      const diaAtual = hoje.getDate();
+      const diasParaTras = Math.max(0, diaAtual - 7); // 7 dias para trás
+      
+      return (diasParaTras / totalDias) * this.timelineWidth;
     },
 
     statusColors() {
@@ -295,7 +283,7 @@ export default {
 
     timeMarkers() {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24));
+      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
       const modo = this.content.visualizacao || 'semana';
       const markers = [];
       const hoje = new Date();
@@ -306,25 +294,31 @@ export default {
       if (modo === 'dia') {
         intervalo = 1; // cada dia
       } else if (modo === 'semana') {
-        intervalo = 7; // cada semana
+        intervalo = 7; // cada semana (começando na segunda)
       } else {
-        intervalo = 30; // cada mês
+        intervalo = 1; // cada dia para o mês
       }
 
       const dataAtual = new Date(range.inicio);
       dataAtual.setHours(0, 0, 0, 0);
 
       while (dataAtual <= range.fim) {
-        const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-        const position = `${(diasDoInicio / totalDias) * this.timelineWidth}px`;
+        const diasDoInicio = dataAtual.getDate() - 1; // Dia do mês - 1 (para começar em 0)
+        const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
 
         let label;
         if (modo === 'dia') {
-          label = dataAtual.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          label = dataAtual.getDate().toString();
         } else if (modo === 'semana') {
-          label = `Sem ${this.getWeekNumber(dataAtual)}`;
+          // Mostrar apenas segundas-feiras
+          if (dataAtual.getDay() === 1) {
+            label = `${dataAtual.getDate()}`;
+          } else {
+            dataAtual.setDate(dataAtual.getDate() + 1);
+            continue;
+          }
         } else {
-          label = dataAtual.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+          label = dataAtual.getDate().toString();
         }
 
         const isToday = dataAtual.getTime() === hoje.getTime();
@@ -347,7 +341,7 @@ export default {
 
     dayLines() {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24));
+      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
       const lines = [];
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
@@ -356,8 +350,8 @@ export default {
       dataAtual.setHours(0, 0, 0, 0);
 
       while (dataAtual <= range.fim) {
-        const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-        const position = `${(diasDoInicio / totalDias) * this.timelineWidth}px`;
+        const diasDoInicio = dataAtual.getDate() - 1; // Dia do mês - 1
+        const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
 
         const isToday = dataAtual.getTime() === hoje.getTime();
         const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
@@ -379,7 +373,7 @@ export default {
   methods: {
     calcularPosicaoAtividade(atividade) {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24));
+      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
 
       const dataInicio = atividade.data_inicio ? new Date(atividade.data_inicio) : null;
       const dataFim = atividade.data_previsao_termino ? new Date(atividade.data_previsao_termino) : null;
@@ -393,15 +387,27 @@ export default {
         };
       }
 
-      // Calcular posição de início
-      const diasDoInicio = Math.ceil((dataInicio - range.inicio) / (1000 * 60 * 60 * 24));
-      const left = Math.max(0, (diasDoInicio / totalDias) * this.timelineWidth);
+      // Verificar se a atividade está no mês atual
+      if (dataInicio.getMonth() !== this.currentDate.getMonth() || 
+          dataInicio.getFullYear() !== this.currentDate.getFullYear()) {
+        // Se não está no mês, não exibir
+        return {
+          left: '-100px',
+          width: '0px',
+          semDatas: true
+        };
+      }
+
+      // Calcular posição baseada no dia do mês
+      const diaInicio = dataInicio.getDate() - 1; // Dia do mês - 1
+      const left = (diaInicio / (totalDias - 1)) * this.timelineWidth;
 
       // Calcular largura
-      let width = 8; // Largura mínima para atividades sem data fim
+      let width = 20; // Largura mínima
       if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
-        const duracaoDias = Math.ceil((dataFim - dataInicio) / (1000 * 60 * 60 * 24));
-        width = Math.max(8, (duracaoDias / totalDias) * this.timelineWidth);
+        const diaFim = dataFim.getDate() - 1;
+        const duracaoDias = diaFim - diaInicio + 1;
+        width = Math.max(20, (duracaoDias / (totalDias - 1)) * this.timelineWidth);
       }
 
       return {
@@ -493,23 +499,21 @@ export default {
       };
     },
 
-    navegarTempo(direcao) {
-      const modo = this.content.visualizacao || 'semana';
+    navegarMes(direcao) {
       const novaData = new Date(this.currentDate);
-
-      if (modo === 'dia') {
-        novaData.setDate(novaData.getDate() + direcao);
-      } else if (modo === 'semana') {
-        novaData.setDate(novaData.getDate() + (direcao * 7));
-      } else {
-        novaData.setMonth(novaData.getMonth() + direcao);
-      }
-
+      novaData.setMonth(novaData.getMonth() + direcao);
       this.currentDate = novaData;
+      
+      // Scroll para a posição correta após mudança de mês
+      this.$nextTick(() => {
+        this.scrollToCurrentDay();
+      });
     },
 
-    irParaHoje() {
-      this.currentDate = new Date();
+    scrollToCurrentDay() {
+      if (this.$refs.ganttBody) {
+        this.$refs.ganttBody.scrollLeft = this.scrollPosition;
+      }
     },
 
     getWeekNumber(date) {
@@ -520,19 +524,7 @@ export default {
       return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
     },
 
-    onTimelineScroll(event) {
-      // Sincronizar scroll entre header e body
-      if (this.$refs.ganttBody) {
-        this.$refs.ganttBody.scrollLeft = event.target.scrollLeft;
-      }
-    },
 
-    onBodyScroll(event) {
-      // Sincronizar scroll entre body e header
-      if (this.$refs.timelineHeader) {
-        this.$refs.timelineHeader.scrollLeft = event.target.scrollLeft;
-      }
-    },
 
     criarTooltip(atividade) {
       const dataInicio = atividade.data_inicio ? 
