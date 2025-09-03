@@ -105,6 +105,14 @@ export default {
       type: "Color",
       defaultValue: "#F9FAFB",
     },
+    corDiaAtual: {
+      label: {
+        en: "Current Day Color",
+        pt: "Cor do Dia Atual",
+      },
+      type: "Color",
+      defaultValue: "#3B82F6",
+    },
     visualizacao: {
       label: {
         en: "View Mode",
