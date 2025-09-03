@@ -223,7 +223,7 @@ export default {
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
         return totalDias * 15; // 15px por dia (2 meses)
       } else {
-        return 12 * 150; // 150px por mês (12 meses) - largura aumentada para dezembro
+        return 13 * 150; // 150px por mês (13 meses: Jan-Dez + Jan) - gambiarra para mostrar dezembro
       }
     },
 
@@ -397,9 +397,8 @@ export default {
       hoje.setHours(0, 0, 0, 0);
 
       if (modo === 'mes') {
-        // Para visualização mensal, mostrar os 12 meses (0-11 = Jan-Dez)
-
-        for (let mes = 0; mes <= 11; mes++) {
+        // GAMBIARRA: Janeiro a Janeiro (13 meses) para garantir que dezembro apareça no scroll
+        for (let mes = 0; mes <= 12; mes++) { // 0=Jan, 1=Fev, ..., 11=Dez, 12=Jan(próximo ano)
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
           // Posição simples: cada mês ocupa 150px
           const position = `${mes * 150}px`;
@@ -473,8 +472,8 @@ export default {
       hoje.setHours(0, 0, 0, 0);
 
       if (modo === 'mes') {
-        // Para visualização mensal, mostrar linhas dos meses (0-11 = Jan-Dez)
-        for (let mes = 0; mes <= 11; mes++) {
+        // GAMBIARRA: Janeiro a Janeiro (13 meses) para garantir que dezembro apareça no scroll
+        for (let mes = 0; mes <= 12; mes++) { // 0=Jan, 1=Fev, ..., 11=Dez, 12=Jan(próximo ano)
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
           // Posição simples: cada mês ocupa 150px
           const position = `${mes * 150}px`;
