@@ -144,11 +144,15 @@ export default {
     };
   },
   watch: {
-    'content.visualizacao'() {
-      // Forçar atualização quando a visualização mudar
-      this.$nextTick(() => {
-        this.scrollToCurrentDay();
-      });
+    'content.visualizacao'(novoModo, modoAnterior) {
+      if (novoModo !== modoAnterior) {
+        // Forçar atualização quando a visualização mudar
+        this.$nextTick(() => {
+          this.scrollToCurrentDay();
+          // Forçar re-render do componente
+          this.$forceUpdate();
+        });
+      }
     }
   },
   computed: {
@@ -288,7 +292,8 @@ export default {
         const mes = this.currentDate.getMonth();
         
         const inicio = new Date(ano, mes, 1); // Primeiro dia do mês
-        const fim = new Date(ano, mes + 1, 0); // Último dia do mês
+        const ultimoDia = new Date(ano, mes + 1, 0).getDate(); // Último dia do mês
+        const fim = new Date(ano, mes, ultimoDia, 23, 59, 59); // Último dia do mês com horário final
         
         return { inicio, fim };
       } else if (modo === 'semana') {
@@ -297,7 +302,7 @@ export default {
         const mes = this.currentDate.getMonth();
         
         const inicio = new Date(ano, mes, 1); // Primeiro dia do mês atual
-        const fim = new Date(ano, mes + 2, 0); // Último dia do próximo mês (2 meses)
+        const fim = new Date(ano, mes + 2, 0, 23, 59, 59); // Último dia do próximo mês (2 meses)
         
         return { inicio, fim };
       } else {
@@ -305,7 +310,7 @@ export default {
         const ano = this.currentDate.getFullYear();
         
         const inicio = new Date(ano, 0, 1); // 1º de janeiro
-        const fim = new Date(ano, 11, 31); // 31 de dezembro
+        const fim = new Date(ano, 11, 31, 23, 59, 59); // 31 de dezembro
         
         return { inicio, fim };
       }
@@ -323,7 +328,7 @@ export default {
         }
         const mesAtual = hoje.getMonth();
         const mesParaTras = Math.max(0, mesAtual - 2); // 2 meses para trás
-        return (mesParaTras / 11) * this.timelineWidth;
+        return (mesParaTras / 12) * this.timelineWidth;
       } else {
         // Para visualizações dia e semana
         if (hoje < range.inicio || hoje > range.fim) {
@@ -369,7 +374,7 @@ export default {
         // Para visualização mensal, mostrar os 12 meses
         for (let mes = 0; mes < 12; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
-          const position = `${(mes / 11) * this.timelineWidth}px`;
+          const position = `${(mes / 12) * this.timelineWidth}px`;
           const label = dataAtual.toLocaleDateString('pt-BR', { month: 'short' });
           
           markers.push({
@@ -389,7 +394,7 @@ export default {
 
         while (dataAtual <= range.fim) {
           const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-          const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
+          const position = `${(diasDoInicio / totalDias) * this.timelineWidth}px`;
 
           let shouldShow = false;
           let label = '';
@@ -438,7 +443,7 @@ export default {
         // Para visualização mensal, mostrar linhas dos meses
         for (let mes = 0; mes < 12; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
-          const position = `${(mes / 11) * this.timelineWidth}px`;
+          const position = `${(mes / 12) * this.timelineWidth}px`;
           
           lines.push({
             date: dataAtual.toISOString(),
@@ -455,7 +460,7 @@ export default {
 
         while (dataAtual <= range.fim) {
           const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-          const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
+          const position = `${(diasDoInicio / totalDias) * this.timelineWidth}px`;
 
           const isToday = dataAtual.getTime() === hoje.getTime();
           const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
@@ -515,7 +520,7 @@ export default {
           };
         }
 
-        const left = (mesInicio / 11) * this.timelineWidth;
+        const left = (mesInicio / 12) * this.timelineWidth;
         
         let width = 20; // Largura mínima
         if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
@@ -537,14 +542,14 @@ export default {
         // Para visualizações dia e semana
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
         const diasDoInicio = Math.max(0, Math.ceil((dataInicio - range.inicio) / (1000 * 60 * 60 * 24)));
-        const left = (diasDoInicio / (totalDias - 1)) * this.timelineWidth;
+        const left = (diasDoInicio / totalDias) * this.timelineWidth;
 
         // Calcular largura
         let width = 20; // Largura mínima
         if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
           const diasDoFim = Math.ceil((dataFim - range.inicio) / (1000 * 60 * 60 * 24));
           const duracaoDias = Math.max(1, diasDoFim - diasDoInicio + 1);
-          width = Math.max(20, (duracaoDias / (totalDias - 1)) * this.timelineWidth);
+          width = Math.max(20, (duracaoDias / totalDias) * this.timelineWidth);
         }
 
         return {
@@ -638,7 +643,11 @@ export default {
     },
 
     alterarVisualizacao(modo) {
-      this.$emit('update:content', { visualizacao: modo });
+      // Usar update:content conforme documentação WeWeb
+      this.$emit('update:content', { 
+        ...this.content,
+        visualizacao: modo 
+      });
     },
 
     getButtonStyles(modo) {
@@ -706,6 +715,13 @@ Status: ${atividade.status || 'Sem status'}
 Início: ${dataInicio}
 Previsão: ${dataFim}`;
     },
+  },
+
+  mounted() {
+    // Garantir que o scroll inicial funcione
+    this.$nextTick(() => {
+      this.scrollToCurrentDay();
+    });
   },
 };
 </script>
@@ -801,6 +817,7 @@ Previsão: ${dataFim}`;
   font-weight: 600;
   position: relative;
   overflow-x: hidden;
+  background-color: inherit !important;
 }
 
 .time-markers {
@@ -828,6 +845,10 @@ Previsão: ${dataFim}`;
   overflow-y: auto;
   overflow-x: auto;
   max-height: calc(100% - 48px);
+}
+
+.gantt-body::-webkit-scrollbar-track {
+  background: inherit;
 }
 
 .gantt-user-section {
@@ -861,6 +882,7 @@ Previsão: ${dataFim}`;
   position: relative;
   min-height: 50px;
   flex: 1;
+  background-color: inherit !important;
 }
 
 .day-lines {
@@ -871,6 +893,7 @@ Previsão: ${dataFim}`;
   pointer-events: none;
   width: 100%;
   min-width: 100%;
+  background-color: inherit;
 }
 
 .day-line {
