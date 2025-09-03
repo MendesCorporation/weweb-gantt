@@ -138,7 +138,7 @@ export default {
       modoVisualizacao: [
         { value: 'dia', label: 'Dia' },
         { value: 'semana', label: 'Semana' },
-        { value: 'mes', label: 'Mês' }
+        { value: 'ano', label: 'Ano' }
       ]
     };
   },
@@ -162,25 +162,29 @@ export default {
     periodoAtual() {
       const modo = this.content.visualizacao || 'semana';
       if (modo === 'dia') {
-        return 'Próximos 30 dias';
-      } else if (modo === 'semana') {
-        return 'Próximas 4 semanas';
-      } else {
         return this.currentDate.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
+      } else if (modo === 'semana') {
+        const mesAtual = this.currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const proximoMes = new Date(this.currentDate.getFullYear(), this.currentDate.getMonth() + 1, 1)
+          .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        return `${mesAtual} - ${proximoMes}`;
+      } else {
+        return this.currentDate.getFullYear().toString();
       }
     },
 
     timelineWidth() {
       const modo = this.content.visualizacao || 'semana';
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
       
       if (modo === 'dia') {
-        return totalDias * 40; // 40px por dia
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        return totalDias * 30; // 30px por dia
       } else if (modo === 'semana') {
-        return totalDias * 20; // 20px por dia
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        return totalDias * 15; // 15px por dia (2 meses)
       } else {
-        return totalDias * 25; // 25px por dia no mês
+        return 12 * 100; // 100px por mês (12 meses)
       }
     },
 
@@ -268,28 +272,31 @@ export default {
 
     timelineRange() {
       const modo = this.content.visualizacao || 'semana';
-      const hoje = new Date();
       
       if (modo === 'dia') {
-        // Visualização diária: mostrar 30 dias a partir de hoje
-        const inicio = new Date(hoje);
-        const fim = new Date(hoje);
-        fim.setDate(fim.getDate() + 29);
-        return { inicio, fim };
-      } else if (modo === 'semana') {
-        // Visualização semanal: mostrar semana atual + 3 semanas
-        const inicioSemana = new Date(hoje);
-        inicioSemana.setDate(hoje.getDate() - hoje.getDay()); // Domingo da semana atual
-        const fimSemana = new Date(inicioSemana);
-        fimSemana.setDate(inicioSemana.getDate() + 27); // 4 semanas
-        return { inicio: inicioSemana, fim: fimSemana };
-      } else {
-        // Visualização mensal: mês atual completo
+        // Visualização diária: mostrar do dia 1 até o último dia do mês atual
         const ano = this.currentDate.getFullYear();
         const mes = this.currentDate.getMonth();
         
         const inicio = new Date(ano, mes, 1); // Primeiro dia do mês
         const fim = new Date(ano, mes + 1, 0); // Último dia do mês
+        
+        return { inicio, fim };
+      } else if (modo === 'semana') {
+        // Visualização semanal: mostrar as semanas de 2 meses
+        const ano = this.currentDate.getFullYear();
+        const mes = this.currentDate.getMonth();
+        
+        const inicio = new Date(ano, mes, 1); // Primeiro dia do mês atual
+        const fim = new Date(ano, mes + 2, 0); // Último dia do próximo mês (2 meses)
+        
+        return { inicio, fim };
+      } else {
+        // Visualização anual: mostrar os meses de 1 a 12 do ano atual
+        const ano = this.currentDate.getFullYear();
+        
+        const inicio = new Date(ano, 0, 1); // 1º de janeiro
+        const fim = new Date(ano, 11, 31); // 31 de dezembro
         
         return { inicio, fim };
       }
@@ -300,24 +307,32 @@ export default {
       const range = this.timelineRange;
       const modo = this.content.visualizacao || 'semana';
       
-      // Se hoje não está no range atual, não fazer scroll
-      if (hoje < range.inicio || hoje > range.fim) {
-        return 0;
-      }
-
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
-      const diasDoInicio = Math.ceil((hoje - range.inicio) / (1000 * 60 * 60 * 24));
-      
-      let diasParaTras = 0;
-      if (modo === 'dia') {
-        diasParaTras = Math.max(0, diasDoInicio - 3); // 3 dias para trás
-      } else if (modo === 'semana') {
-        diasParaTras = Math.max(0, diasDoInicio - 7); // 1 semana para trás
+      if (modo === 'ano') {
+        // Para visualização anual, focar no mês atual
+        if (hoje.getFullYear() !== this.currentDate.getFullYear()) {
+          return 0;
+        }
+        const mesAtual = hoje.getMonth();
+        const mesParaTras = Math.max(0, mesAtual - 2); // 2 meses para trás
+        return (mesParaTras / 11) * this.timelineWidth;
       } else {
-        diasParaTras = Math.max(0, diasDoInicio - 7); // 7 dias para trás no mês
+        // Para visualizações dia e semana
+        if (hoje < range.inicio || hoje > range.fim) {
+          return 0;
+        }
+
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        const diasDoInicio = Math.ceil((hoje - range.inicio) / (1000 * 60 * 60 * 24));
+        
+        let diasParaTras = 0;
+        if (modo === 'dia') {
+          diasParaTras = Math.max(0, diasDoInicio - 3); // 3 dias para trás
+        } else if (modo === 'semana') {
+          diasParaTras = Math.max(0, diasDoInicio - 7); // 1 semana para trás
+        }
+        
+        return (diasParaTras / totalDias) * this.timelineWidth;
       }
-      
-      return (diasParaTras / totalDias) * this.timelineWidth;
     },
 
     statusColors() {
@@ -331,57 +346,72 @@ export default {
 
     timeMarkers() {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
       const modo = this.content.visualizacao || 'semana';
       const markers = [];
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const dataAtual = new Date(range.inicio);
-      dataAtual.setHours(0, 0, 0, 0);
-
-      while (dataAtual <= range.fim) {
-        const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-        const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
-
-        let shouldShow = false;
-        let label = '';
-
-        if (modo === 'dia') {
-          // Mostrar todos os dias
-          shouldShow = true;
-          label = dataAtual.getDate().toString();
-        } else if (modo === 'semana') {
-          // Mostrar apenas segundas-feiras
-          if (dataAtual.getDay() === 1 || dataAtual.getTime() === range.inicio.getTime()) {
-            shouldShow = true;
-            label = `${dataAtual.getDate()}/${dataAtual.getMonth() + 1}`;
-          }
-        } else {
-          // Para visualização mensal, mostrar dias 1, 5, 10, 15, 20, 25 e último dia
-          const diaDoMes = dataAtual.getDate();
-          const ultimoDia = new Date(dataAtual.getFullYear(), dataAtual.getMonth() + 1, 0).getDate();
-          if (diaDoMes === 1 || diaDoMes % 5 === 0 || diaDoMes === ultimoDia) {
-            shouldShow = true;
-            label = diaDoMes.toString();
-          }
-        }
-
-        if (shouldShow) {
-          const isToday = dataAtual.getTime() === hoje.getTime();
-          const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
-
+      if (modo === 'ano') {
+        // Para visualização anual, mostrar os 12 meses
+        for (let mes = 0; mes < 12; mes++) {
+          const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
+          const position = `${(mes / 11) * this.timelineWidth}px`;
+          const label = dataAtual.toLocaleDateString('pt-BR', { month: 'short' });
+          
           markers.push({
             date: dataAtual.toISOString(),
             position,
             label,
-            isToday,
-            isWeekend,
+            isToday: hoje.getMonth() === mes && hoje.getFullYear() === this.currentDate.getFullYear(),
+            isWeekend: false,
             showLine: true
           });
         }
+      } else {
+        // Para visualizações dia e semana
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        const dataAtual = new Date(range.inicio);
+        dataAtual.setHours(0, 0, 0, 0);
 
-        dataAtual.setDate(dataAtual.getDate() + 1);
+        while (dataAtual <= range.fim) {
+          const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
+          const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
+
+          let shouldShow = false;
+          let label = '';
+
+          if (modo === 'dia') {
+            // Mostrar dias 1, 5, 10, 15, 20, 25 e último dia do mês
+            const diaDoMes = dataAtual.getDate();
+            const ultimoDia = new Date(dataAtual.getFullYear(), dataAtual.getMonth() + 1, 0).getDate();
+            if (diaDoMes === 1 || diaDoMes % 5 === 0 || diaDoMes === ultimoDia) {
+              shouldShow = true;
+              label = diaDoMes.toString();
+            }
+          } else if (modo === 'semana') {
+            // Mostrar apenas segundas-feiras ou primeiro dia
+            if (dataAtual.getDay() === 1 || dataAtual.getTime() === range.inicio.getTime()) {
+              shouldShow = true;
+              label = `${dataAtual.getDate()}/${dataAtual.getMonth() + 1}`;
+            }
+          }
+
+          if (shouldShow) {
+            const isToday = dataAtual.getTime() === hoje.getTime();
+            const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
+
+            markers.push({
+              date: dataAtual.toISOString(),
+              position,
+              label,
+              isToday,
+              isWeekend,
+              showLine: true
+            });
+          }
+
+          dataAtual.setDate(dataAtual.getDate() + 1);
+        }
       }
 
       return markers;
@@ -389,29 +419,46 @@ export default {
 
     dayLines() {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+      const modo = this.content.visualizacao || 'semana';
       const lines = [];
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      const dataAtual = new Date(range.inicio);
-      dataAtual.setHours(0, 0, 0, 0);
+      if (modo === 'ano') {
+        // Para visualização anual, mostrar linhas dos meses
+        for (let mes = 0; mes < 12; mes++) {
+          const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
+          const position = `${(mes / 11) * this.timelineWidth}px`;
+          
+          lines.push({
+            date: dataAtual.toISOString(),
+            position,
+            isToday: hoje.getMonth() === mes && hoje.getFullYear() === this.currentDate.getFullYear(),
+            isWeekend: false
+          });
+        }
+      } else {
+        // Para visualizações dia e semana
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        const dataAtual = new Date(range.inicio);
+        dataAtual.setHours(0, 0, 0, 0);
 
-      while (dataAtual <= range.fim) {
-        const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
-        const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
+        while (dataAtual <= range.fim) {
+          const diasDoInicio = Math.ceil((dataAtual - range.inicio) / (1000 * 60 * 60 * 24));
+          const position = `${(diasDoInicio / (totalDias - 1)) * this.timelineWidth}px`;
 
-        const isToday = dataAtual.getTime() === hoje.getTime();
-        const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
+          const isToday = dataAtual.getTime() === hoje.getTime();
+          const isWeekend = dataAtual.getDay() === 0 || dataAtual.getDay() === 6;
 
-        lines.push({
-          date: dataAtual.toISOString(),
-          position,
-          isToday,
-          isWeekend
-        });
+          lines.push({
+            date: dataAtual.toISOString(),
+            position,
+            isToday,
+            isWeekend
+          });
 
-        dataAtual.setDate(dataAtual.getDate() + 1);
+          dataAtual.setDate(dataAtual.getDate() + 1);
+        }
       }
 
       return lines;
@@ -421,7 +468,7 @@ export default {
   methods: {
     calcularPosicaoAtividade(atividade) {
       const range = this.timelineRange;
-      const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+      const modo = this.content.visualizacao || 'semana';
 
       const dataInicio = atividade.data_inicio ? new Date(atividade.data_inicio) : null;
       const dataFim = atividade.data_previsao_termino ? new Date(atividade.data_previsao_termino) : null;
@@ -445,23 +492,57 @@ export default {
         };
       }
 
-      // Calcular posição baseada no range
-      const diasDoInicio = Math.max(0, Math.ceil((dataInicio - range.inicio) / (1000 * 60 * 60 * 24)));
-      const left = (diasDoInicio / (totalDias - 1)) * this.timelineWidth;
+      if (modo === 'ano') {
+        // Para visualização anual, calcular baseado nos meses
+        const mesInicio = dataInicio.getMonth();
+        const anoInicio = dataInicio.getFullYear();
+        
+        if (anoInicio !== this.currentDate.getFullYear()) {
+          return {
+            left: '-100px',
+            width: '0px',
+            semDatas: true
+          };
+        }
 
-      // Calcular largura
-      let width = 20; // Largura mínima
-      if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
-        const diasDoFim = Math.ceil((dataFim - range.inicio) / (1000 * 60 * 60 * 24));
-        const duracaoDias = Math.max(1, diasDoFim - diasDoInicio + 1);
-        width = Math.max(20, (duracaoDias / (totalDias - 1)) * this.timelineWidth);
+        const left = (mesInicio / 11) * this.timelineWidth;
+        
+        let width = 20; // Largura mínima
+        if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
+          const mesFim = dataFim.getMonth();
+          const anoFim = dataFim.getFullYear();
+          
+          if (anoFim === this.currentDate.getFullYear()) {
+            const duracaoMeses = Math.max(1, mesFim - mesInicio + 1);
+            width = Math.max(20, (duracaoMeses / 12) * this.timelineWidth);
+          }
+        }
+
+        return {
+          left: `${left}px`,
+          width: `${width}px`,
+          semDatas: false
+        };
+      } else {
+        // Para visualizações dia e semana
+        const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
+        const diasDoInicio = Math.max(0, Math.ceil((dataInicio - range.inicio) / (1000 * 60 * 60 * 24)));
+        const left = (diasDoInicio / (totalDias - 1)) * this.timelineWidth;
+
+        // Calcular largura
+        let width = 20; // Largura mínima
+        if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
+          const diasDoFim = Math.ceil((dataFim - range.inicio) / (1000 * 60 * 60 * 24));
+          const duracaoDias = Math.max(1, diasDoFim - diasDoInicio + 1);
+          width = Math.max(20, (duracaoDias / (totalDias - 1)) * this.timelineWidth);
+        }
+
+        return {
+          left: `${left}px`,
+          width: `${width}px`,
+          semDatas: false
+        };
       }
-
-      return {
-        left: `${left}px`,
-        width: `${width}px`,
-        semDatas: false
-      };
     },
 
     obterCorStatus(status) {
@@ -526,8 +607,21 @@ export default {
       this.$emit('trigger-event', {
         name: 'onActivityClick',
         payload: {
-          atividade,
-          usuario,
+          atividade: {
+            id: atividade.id,
+            nome: atividade.nome,
+            descricao: atividade.descricao,
+            status: atividade.status,
+            data_inicio: atividade.data_inicio,
+            data_previsao_termino: atividade.data_previsao_termino,
+            data_real_termino: atividade.data_real_termino,
+            projeto: atividade.projeto,
+            assigned_to: atividade.assigned_to
+          },
+          usuario: {
+            id: usuario.id,
+            nome: usuario.nome
+          },
           projeto: atividade.nomeProjeto
         }
       });
@@ -551,11 +645,14 @@ export default {
       const novaData = new Date(this.currentDate);
       
       if (modo === 'dia') {
-        novaData.setDate(novaData.getDate() + (direcao * 30)); // 30 dias
+        // Navegar por mês (dia 1 até último dia do mês)
+        novaData.setMonth(novaData.getMonth() + direcao);
       } else if (modo === 'semana') {
-        novaData.setDate(novaData.getDate() + (direcao * 28)); // 4 semanas
+        // Navegar por mês (semanas de 2 meses)
+        novaData.setMonth(novaData.getMonth() + direcao);
       } else {
-        novaData.setMonth(novaData.getMonth() + direcao); // 1 mês
+        // Navegar por ano (meses de 1 a 12)
+        novaData.setFullYear(novaData.getFullYear() + direcao);
       }
       
       this.currentDate = novaData;
