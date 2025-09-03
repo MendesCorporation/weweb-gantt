@@ -73,5 +73,52 @@ export default {
       type: "Color",
       defaultValue: "#10B981",
     },
+    corFundo: {
+      label: {
+        en: "Background Color",
+        pt: "Cor de Fundo",
+      },
+      type: "Color",
+      defaultValue: "#FFFFFF",
+    },
+    corBorda: {
+      label: {
+        en: "Border Color",
+        pt: "Cor da Borda",
+      },
+      type: "Color",
+      defaultValue: "#E5E7EB",
+    },
+    corTexto: {
+      label: {
+        en: "Text Color",
+        pt: "Cor do Texto",
+      },
+      type: "Color",
+      defaultValue: "#374151",
+    },
+    corHeader: {
+      label: {
+        en: "Header Color",
+        pt: "Cor do Cabeçalho",
+      },
+      type: "Color",
+      defaultValue: "#F9FAFB",
+    },
+    visualizacao: {
+      label: {
+        en: "View Mode",
+        pt: "Modo de Visualização",
+      },
+      type: "TextSelect",
+      options: {
+        choices: [
+          { value: "dia", label: { en: "Day", pt: "Dia" } },
+          { value: "semana", label: { en: "Week", pt: "Semana" } },
+          { value: "mes", label: { en: "Month", pt: "Mês" } }
+        ]
+      },
+      defaultValue: "semana",
+    },
   },
 };
