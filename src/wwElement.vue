@@ -27,26 +27,28 @@
 
     <div class="gantt-header" :style="{ backgroundColor: content.corHeader, borderColor: content.corBorda }">
       <div class="users-column" :style="{ color: content.corTexto, borderColor: content.corBorda }">Usuários</div>
-      <div class="timeline-header" :style="{ backgroundColor: content.corFundo }" aria-label="Linha do tempo">
-        <div class="time-markers" :style="{ width: `${timelineWidth}px` }">
-          <div 
-            v-for="marker in timeMarkers" 
-            :key="marker.date"
-            class="time-marker"
-            :class="{ 'today': marker.isToday, 'weekend': marker.isWeekend }"
-            :style="{ 
-              left: marker.position, 
-              color: marker.isToday ? '#3B82F6' : content.corTexto,
-              borderLeft: marker.showLine ? `1px solid ${content.corBorda}` : 'none'
-            }"
-            :aria-label="`Data: ${marker.label}`"
-          >
-            {{ marker.label }}
+      <div class="timeline-header-wrapper">
+        <div class="timeline-header" :style="{ backgroundColor: content.corFundo }" aria-label="Linha do tempo" ref="timelineHeader">
+          <div class="time-markers" :style="{ width: `${timelineWidth}px` }">
+            <div 
+              v-for="marker in timeMarkers" 
+              :key="marker.date"
+              class="time-marker"
+              :class="{ 'today': marker.isToday, 'weekend': marker.isWeekend }"
+              :style="{ 
+                left: marker.position, 
+                color: marker.isToday ? '#3B82F6' : content.corTexto,
+                borderLeft: marker.showLine ? `1px solid ${content.corBorda}` : 'none'
+              }"
+              :aria-label="`Data: ${marker.label}`"
+            >
+              {{ marker.label }}
+            </div>
           </div>
         </div>
       </div>
     </div>
-    <div class="gantt-body" ref="ganttBody">
+    <div class="gantt-body" ref="ganttBody" @scroll="syncScroll">
       <div v-if="processedUsers.length === 0" class="empty-state" :style="{ color: content.corTexto }">
         <p>Nenhum usuário encontrado</p>
         <small>Verifique se os dados de usuários, atividades e projetos estão configurados corretamente.</small>
@@ -318,7 +320,13 @@ export default {
             continue;
           }
         } else {
-          label = dataAtual.getDate().toString();
+          // Para visualização mensal, mostrar apenas alguns dias
+          if (dataAtual.getDate() === 1 || dataAtual.getDate() % 5 === 0) {
+            label = dataAtual.getDate().toString();
+          } else {
+            dataAtual.setDate(dataAtual.getDate() + 1);
+            continue;
+          }
         }
 
         const isToday = dataAtual.getTime() === hoje.getTime();
@@ -516,6 +524,12 @@ export default {
       }
     },
 
+    syncScroll() {
+      if (this.$refs.ganttBody && this.$refs.timelineHeader) {
+        this.$refs.timelineHeader.scrollLeft = this.$refs.ganttBody.scrollLeft;
+      }
+    },
+
     getWeekNumber(date) {
       const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
       const dayNum = d.getUTCDay() || 7;
@@ -610,22 +624,28 @@ Previsão: ${dataFim}`;
 }
 
 .gantt-header {
-  display: grid;
-  grid-template-columns: 200px 1fr;
+  display: flex;
   border-bottom: 2px solid;
 }
 
 .users-column {
+  width: 200px;
+  flex-shrink: 0;
   padding: 12px 16px;
   font-weight: 600;
   border-right: 1px solid;
+}
+
+.timeline-header-wrapper {
+  flex: 1;
+  overflow: hidden;
 }
 
 .timeline-header {
   padding: 12px 16px;
   font-weight: 600;
   position: relative;
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 
 .time-markers {
@@ -651,17 +671,19 @@ Previsão: ${dataFim}`;
 
 .gantt-body {
   overflow-y: auto;
+  overflow-x: auto;
   max-height: calc(100% - 48px);
 }
 
 .gantt-user-section {
-  display: grid;
-  grid-template-columns: 200px 1fr;
+  display: flex;
   border-bottom: 1px solid;
   min-height: 50px;
 }
 
 .user-info {
+  width: 200px;
+  flex-shrink: 0;
   padding: 8px 16px;
   border-right: 1px solid;
   display: flex;
@@ -682,8 +704,8 @@ Previsão: ${dataFim}`;
 
 .user-timeline {
   position: relative;
-  overflow-x: auto;
   min-height: 50px;
+  flex: 1;
 }
 
 .day-lines {
@@ -796,12 +818,9 @@ Previsão: ${dataFim}`;
     min-width: auto;
   }
   
-  .gantt-header {
-    grid-template-columns: 150px 1fr;
-  }
-  
-  .gantt-user-section {
-    grid-template-columns: 150px 1fr;
+  .users-column,
+  .user-info {
+    width: 150px;
   }
   
   .users-column,
@@ -824,12 +843,9 @@ Previsão: ${dataFim}`;
     width: 100%;
   }
   
-  .gantt-header {
-    grid-template-columns: 120px 1fr;
-  }
-  
-  .gantt-user-section {
-    grid-template-columns: 120px 1fr;
+  .users-column,
+  .user-info {
+    width: 120px;
   }
   
   .users-column,
@@ -856,29 +872,21 @@ Previsão: ${dataFim}`;
 }
 
 /* Scroll customizado */
-.gantt-body::-webkit-scrollbar,
-.timeline-header::-webkit-scrollbar,
-.user-timeline::-webkit-scrollbar {
+.gantt-body::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.gantt-body::-webkit-scrollbar-track,
-.timeline-header::-webkit-scrollbar-track,
-.user-timeline::-webkit-scrollbar-track {
+.gantt-body::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.05);
 }
 
-.gantt-body::-webkit-scrollbar-thumb,
-.timeline-header::-webkit-scrollbar-thumb,
-.user-timeline::-webkit-scrollbar-thumb {
+.gantt-body::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.2);
   border-radius: 4px;
 }
 
-.gantt-body::-webkit-scrollbar-thumb:hover,
-.timeline-header::-webkit-scrollbar-thumb:hover,
-.user-timeline::-webkit-scrollbar-thumb:hover {
+.gantt-body::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.3);
 }
 
