@@ -139,9 +139,17 @@ export default {
       modoVisualizacao: [
         { value: 'dia', label: 'Dia' },
         { value: 'semana', label: 'Semana' },
-        { value: 'ano', label: 'Ano' }
+        { value: 'mes', label: 'Mês' }
       ]
     };
+  },
+  watch: {
+    'content.visualizacao'() {
+      // Forçar atualização quando a visualização mudar
+      this.$nextTick(() => {
+        this.scrollToCurrentDay();
+      });
+    }
   },
   computed: {
     containerStyles() {
@@ -180,7 +188,7 @@ export default {
       
       if (modo === 'dia') {
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
-        return totalDias * 30; // 30px por dia
+        return totalDias * 50; // 50px por dia para melhor visualização
       } else if (modo === 'semana') {
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
         return totalDias * 15; // 15px por dia (2 meses)
@@ -293,7 +301,7 @@ export default {
         
         return { inicio, fim };
       } else {
-        // Visualização anual: mostrar os meses de 1 a 12 do ano atual
+        // Visualização mensal: mostrar os meses de 1 a 12 do ano atual
         const ano = this.currentDate.getFullYear();
         
         const inicio = new Date(ano, 0, 1); // 1º de janeiro
@@ -308,8 +316,8 @@ export default {
       const range = this.timelineRange;
       const modo = this.content.visualizacao || 'semana';
       
-      if (modo === 'ano') {
-        // Para visualização anual, focar no mês atual
+      if (modo === 'mes') {
+        // Para visualização mensal, focar no mês atual
         if (hoje.getFullYear() !== this.currentDate.getFullYear()) {
           return 0;
         }
@@ -327,7 +335,12 @@ export default {
         
         let diasParaTras = 0;
         if (modo === 'dia') {
-          diasParaTras = Math.max(0, diasDoInicio - 3); // 3 dias para trás
+          // Focar no dia atual
+          const hoje = new Date();
+          if (hoje >= range.inicio && hoje <= range.fim) {
+            const diasDoHoje = Math.ceil((hoje - range.inicio) / (1000 * 60 * 60 * 24));
+            diasParaTras = Math.max(0, diasDoHoje - 3); // 3 dias para trás do dia atual
+          }
         } else if (modo === 'semana') {
           diasParaTras = Math.max(0, diasDoInicio - 7); // 1 semana para trás
         }
@@ -352,8 +365,8 @@ export default {
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      if (modo === 'ano') {
-        // Para visualização anual, mostrar os 12 meses
+      if (modo === 'mes') {
+        // Para visualização mensal, mostrar os 12 meses
         for (let mes = 0; mes < 12; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
           const position = `${(mes / 11) * this.timelineWidth}px`;
@@ -382,13 +395,9 @@ export default {
           let label = '';
 
           if (modo === 'dia') {
-            // Mostrar dias 1, 5, 10, 15, 20, 25 e último dia do mês
-            const diaDoMes = dataAtual.getDate();
-            const ultimoDia = new Date(dataAtual.getFullYear(), dataAtual.getMonth() + 1, 0).getDate();
-            if (diaDoMes === 1 || diaDoMes % 5 === 0 || diaDoMes === ultimoDia) {
-              shouldShow = true;
-              label = diaDoMes.toString();
-            }
+            // Mostrar todos os dias
+            shouldShow = true;
+            label = dataAtual.getDate().toString();
           } else if (modo === 'semana') {
             // Mostrar apenas segundas-feiras ou primeiro dia
             if (dataAtual.getDay() === 1 || dataAtual.getTime() === range.inicio.getTime()) {
@@ -425,8 +434,8 @@ export default {
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
 
-      if (modo === 'ano') {
-        // Para visualização anual, mostrar linhas dos meses
+      if (modo === 'mes') {
+        // Para visualização mensal, mostrar linhas dos meses
         for (let mes = 0; mes < 12; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
           const position = `${(mes / 11) * this.timelineWidth}px`;
@@ -493,8 +502,8 @@ export default {
         };
       }
 
-      if (modo === 'ano') {
-        // Para visualização anual, calcular baseado nos meses
+      if (modo === 'mes') {
+        // Para visualização mensal, calcular baseado nos meses
         const mesInicio = dataInicio.getMonth();
         const anoInicio = dataInicio.getFullYear();
         

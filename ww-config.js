@@ -123,7 +123,7 @@ export default {
         choices: [
           { value: "dia", label: { en: "Day", pt: "Dia" } },
           { value: "semana", label: { en: "Week", pt: "Semana" } },
-          { value: "ano", label: { en: "Year", pt: "Ano" } }
+          { value: "mes", label: { en: "Month", pt: "Mês" } }
         ]
       },
       defaultValue: "semana",
