@@ -1,0 +1,29 @@
+{
+  "name": "gantt-chart-component",
+  "version": "1.0.0",
+  "description": "Componente Gantt Chart para WeWeb com suporte a atividades e usuários",
+  "main": "ww-config.js",
+  "scripts": {
+    "build": "weweb build",
+    "serve": "weweb serve",
+    "dev": "weweb serve"
+  },
+  "keywords": [
+    "weweb",
+    "gantt",
+    "chart",
+    "timeline",
+    "project-management",
+    "atividades",
+    "usuarios"
+  ],
+  "author": "WeWeb Component",
+  "license": "MIT",
+  "devDependencies": {
+    "@weweb/cli": "latest"
+  },
+  "dependencies": {},
+  "weweb": {
+    "componentType": "element"
+  }
+}
