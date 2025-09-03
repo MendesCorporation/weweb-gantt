@@ -135,7 +135,13 @@ export default {
       label: {
         en: "Activity Clicked",
         pt: "Atividade Clicada"
-      }
+      },
+      event: {
+        atividade: {},
+        usuario: {},
+        projeto: ""
+      },
+      default: true
     }
   ],
 };

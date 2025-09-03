@@ -131,6 +131,7 @@ export default {
   props: {
     content: { type: Object, required: true },
   },
+  emits: ['trigger-event', 'update:content'],
   data() {
     return {
       currentDate: new Date(),
@@ -606,7 +607,7 @@ export default {
       // Usar trigger-event conforme documentação WeWeb
       this.$emit('trigger-event', {
         name: 'onActivityClick',
-        payload: {
+        event: {
           atividade: {
             id: atividade.id,
             nome: atividade.nome,
