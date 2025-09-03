@@ -11,7 +11,7 @@
         <button 
           v-for="modo in modoVisualizacao" 
           :key="modo.value"
-          :class="['view-btn', { active: content.visualizacao === modo.value }]"
+          :class="['view-btn', { active: visualizacaoAtual === modo.value }]"
           :style="getButtonStyles(modo.value)"
           @click="alterarVisualizacao(modo.value)"
         >
@@ -136,6 +136,7 @@ export default {
     return {
       currentDate: new Date(),
       timelineOffset: 0,
+      modoAtual: null, // Para controlar localmente a visualização
       modoVisualizacao: [
         { value: 'dia', label: 'Dia' },
         { value: 'semana', label: 'Semana' },
@@ -176,6 +177,11 @@ export default {
     }
   },
   computed: {
+    // Computed para controlar a visualização atual
+    visualizacaoAtual() {
+      return this.modoAtual || this.content.visualizacao || 'semana';
+    },
+
     containerStyles() {
       return {
         height: this.content.altura,
@@ -193,7 +199,7 @@ export default {
     },
 
     periodoAtual() {
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       if (modo === 'dia') {
         return this.currentDate.toLocaleDateString('pt-BR', { year: 'numeric', month: 'long' });
       } else if (modo === 'semana') {
@@ -207,7 +213,7 @@ export default {
     },
 
     timelineWidth() {
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       const range = this.timelineRange;
       
       if (modo === 'dia') {
@@ -217,7 +223,7 @@ export default {
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
         return totalDias * 15; // 15px por dia (2 meses)
       } else {
-        return 12 * 100; // 100px por mês (12 meses)
+        return 12 * 120; // 120px por mês (12 meses) - aumentado para garantir que dezembro apareça
       }
     },
 
@@ -304,7 +310,7 @@ export default {
     },
 
     timelineRange() {
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       
       if (modo === 'dia') {
         // Visualização diária: mostrar do dia 1 até o último dia do mês atual
@@ -339,7 +345,7 @@ export default {
     scrollPosition() {
       const hoje = new Date();
       const range = this.timelineRange;
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       
       if (modo === 'mes') {
         // Para visualização mensal, focar no mês atual
@@ -385,7 +391,7 @@ export default {
 
     timeMarkers() {
       const range = this.timelineRange;
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       const markers = [];
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
@@ -457,7 +463,7 @@ export default {
 
     dayLines() {
       const range = this.timelineRange;
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       const lines = [];
       const hoje = new Date();
       hoje.setHours(0, 0, 0, 0);
@@ -509,7 +515,7 @@ export default {
   methods: {
     calcularPosicaoAtividade(atividade) {
       const range = this.timelineRange;
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
 
       const dataInicio = atividade.data_inicio ? new Date(atividade.data_inicio) : null;
       const dataFim = atividade.data_previsao_termino ? new Date(atividade.data_previsao_termino) : null;
@@ -677,36 +683,29 @@ export default {
       console.log('Alterando visualização para:', modo);
       console.log('Visualização atual:', this.content.visualizacao);
       
-      // Abordagem múltipla para garantir funcionamento no preview/deploy
-      
-      // 1. Tentar update:content (padrão WeWeb)
+      // Usar apenas update:content (não modificar diretamente o proxy)
       const novoContent = { 
         ...this.content,
         visualizacao: modo 
       };
+      
       console.log('Novo content:', novoContent);
       this.$emit('update:content', novoContent);
       
-      // 2. Forçar mudança local para preview/deploy
-      if (this.content.visualizacao !== modo) {
-        // Modificar diretamente para preview funcionar
-        this.content.visualizacao = modo;
-        
-        // 3. Forçar re-render completo
-        this.$nextTick(() => {
-          this.$forceUpdate();
-          
-          // 4. Aguardar um pouco mais e forçar novamente
-          setTimeout(() => {
-            this.$forceUpdate();
-            this.scrollToCurrentDay();
-          }, 100);
-        });
-      }
+      // Usar data local para forçar reatividade
+      this.modoAtual = modo;
+      
+      // Forçar re-render
+      this.$nextTick(() => {
+        this.$forceUpdate();
+        setTimeout(() => {
+          this.scrollToCurrentDay();
+        }, 50);
+      });
     },
 
     getButtonStyles(modo) {
-      const isActive = this.content.visualizacao === modo;
+      const isActive = this.visualizacaoAtual === modo;
       return {
         backgroundColor: isActive ? (this.content.corTexto || '#374151') : 'transparent',
         color: isActive ? (this.content.corFundo || '#FFFFFF') : (this.content.corTexto || '#374151'),
@@ -715,7 +714,7 @@ export default {
     },
 
     navegarMes(direcao) {
-      const modo = this.content.visualizacao || 'semana';
+      const modo = this.visualizacaoAtual;
       const novaData = new Date(this.currentDate);
       
       if (modo === 'dia') {
@@ -773,6 +772,9 @@ Previsão: ${dataFim}`;
   },
 
   mounted() {
+    // Inicializar modo atual
+    this.modoAtual = this.content.visualizacao || 'semana';
+    
     // Garantir que o scroll inicial funcione
     this.$nextTick(() => {
       this.scrollToCurrentDay();
