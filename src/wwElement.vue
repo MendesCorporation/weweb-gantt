@@ -336,7 +336,7 @@ export default {
         const ano = this.currentDate.getFullYear();
         
         const inicio = new Date(ano, 0, 1); // 1º de janeiro
-        const fim = new Date(ano, 11, 31, 23, 59, 59); // 31 de dezembro
+        const fim = new Date(ano, 12, 31, 23, 59, 59); // 31 de dezembro
         
         return { inicio, fim };
       }
