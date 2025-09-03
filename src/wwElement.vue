@@ -223,7 +223,7 @@ export default {
         const totalDias = Math.ceil((range.fim - range.inicio) / (1000 * 60 * 60 * 24)) + 1;
         return totalDias * 15; // 15px por dia (2 meses)
       } else {
-        return 12 * 120; // 120px por mês (12 meses) - aumentado para garantir que dezembro apareça
+        return 12 * 150; // 150px por mês (12 meses) - largura aumentada para dezembro
       }
     },
 
@@ -354,9 +354,7 @@ export default {
         }
         const mesAtual = hoje.getMonth();
         const mesParaTras = Math.max(0, mesAtual - 2); // 2 meses para trás
-        return mesParaTras === 11 ? 
-          this.timelineWidth - 100 : // Dezembro
-          (mesParaTras / 11) * (this.timelineWidth - 80); // Outros
+        return mesParaTras * 150; // Posição simples
       } else {
         // Para visualizações dia e semana
         if (hoje < range.inicio || hoje > range.fim) {
@@ -403,10 +401,8 @@ export default {
         console.log('🔍 Iniciando geração de marcadores mensais...');
         for (let mes = 0; mes <= 11; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
-          // Calcular posição garantindo que dezembro (mes=11) apareça
-          const position = mes === 11 ? 
-            `${this.timelineWidth - 80}px` : // Dezembro com margem maior
-            `${(mes / 11) * (this.timelineWidth - 80)}px`; // Outros distribuídos
+          // Posição simples: cada mês ocupa 150px
+          const position = `${mes * 150}px`;
           const label = dataAtual.toLocaleDateString('pt-BR', { month: 'short' });
           
           markers.push({
@@ -418,17 +414,8 @@ export default {
             showLine: true
           });
           
-          // Debug para dezembro
-          if (mes === 11) {
-            console.log('🎯 DEZEMBRO DEBUG:', {
-              mes,
-              position,
-              label,
-              timelineWidth: this.timelineWidth,
-              calculoAntigo: `${(mes / 11) * this.timelineWidth}px`,
-              calculoNovo: position
-            });
-          }
+          // Debug para todos os meses
+          console.log(`Mês ${mes} (${label}): posição ${position}`);
         }
       } else {
         // Para visualizações dia e semana - CORRIGIDO para mostrar todos os dias
@@ -490,10 +477,8 @@ export default {
         // Para visualização mensal, mostrar linhas dos meses (0-11 = Jan-Dez)
         for (let mes = 0; mes <= 11; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
-          // Calcular posição garantindo que dezembro (mes=11) apareça
-          const position = mes === 11 ? 
-            `${this.timelineWidth - 80}px` : // Dezembro com margem maior
-            `${(mes / 11) * (this.timelineWidth - 80)}px`; // Outros distribuídos
+          // Posição simples: cada mês ocupa 150px
+          const position = `${mes * 150}px`;
           
           lines.push({
             date: dataAtual.toISOString(),
@@ -573,10 +558,8 @@ export default {
           };
         }
 
-        // Calcular posição garantindo que dezembro apareça
-        const left = mesInicio === 11 ? 
-          this.timelineWidth - 100 : // Dezembro com margem
-          (mesInicio / 11) * (this.timelineWidth - 80); // Outros distribuídos
+        // Posição simples: cada mês ocupa 150px
+        const left = mesInicio * 150;
         
         let width = 20; // Largura mínima
         if (dataFim && !isNaN(dataFim.getTime()) && dataFim > dataInicio) {
@@ -897,7 +880,7 @@ Previsão: ${dataFim}`;
   padding: 12px 16px;
   font-weight: 600;
   position: relative;
-  overflow-x: visible; /* Temporário para debug */
+  overflow-x: auto;
   background-color: inherit !important;
 }
 
