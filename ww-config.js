@@ -24,6 +24,15 @@ export default {
       bindable: true,
       defaultValue: [],
     },
+    projetos: {
+      label: {
+        en: "Projects",
+        pt: "Projetos",
+      },
+      type: "Array",
+      bindable: true,
+      defaultValue: [],
+    },
     altura: {
       label: {
         en: "Height",

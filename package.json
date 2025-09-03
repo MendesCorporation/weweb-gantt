@@ -1,6 +1,6 @@
 {
   "name": "gantt-chart-component",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Componente Gantt Chart para WeWeb com suporte a atividades e usuários",
   "main": "ww-config.js",
   "scripts": {

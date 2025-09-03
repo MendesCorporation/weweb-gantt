@@ -18,29 +18,48 @@
     </div>
     <div class="gantt-body">
       <div v-if="processedUsers.length === 0" class="empty-state">
-        <p>Nenhuma atividade encontrada</p>
-        <small>Verifique se os dados de usuários e atividades estão configurados corretamente.</small>
+        <p>Nenhum usuário encontrado</p>
+        <small>Verifique se os dados de usuários, atividades e projetos estão configurados corretamente.</small>
       </div>
       <div v-else class="gantt-rows">
-        <div class="gantt-row" v-for="usuario in processedUsers" :key="usuario.id">
-          <div class="user-label">{{ usuario.nome }}</div>
-          <div class="timeline-row">
+        <div 
+          class="gantt-user-section" 
+          v-for="usuario in processedUsers" 
+          :key="usuario.id"
+          :style="{ minHeight: `${Math.max(50, usuario.linhas.length * 30 + 10)}px` }"
+        >
+          <div class="user-info">
+            <div class="user-label">{{ usuario.nome }}</div>
+            <div class="activity-count">{{ usuario.atividades.length }} atividade(s)</div>
+          </div>
+          <div class="user-timeline" :style="{ minHeight: `${Math.max(50, usuario.linhas.length * 30 + 10)}px` }">
             <div 
-              v-for="atividade in usuario.atividades" 
-              :key="atividade.id"
-              class="activity-bar"
-              :class="{ 'sem-datas': calcularPosicaoAtividade(atividade).semDatas }"
-              :style="{
-                left: calcularPosicaoAtividade(atividade).left,
-                width: calcularPosicaoAtividade(atividade).width,
-                backgroundColor: obterCorStatus(atividade.status)
-              }"
-              :title="`${atividade.nome || 'Atividade sem nome'} - ${atividade.status || 'Sem status'}`"
-              :aria-label="`Atividade: ${atividade.nome || 'Sem nome'}, Status: ${atividade.status || 'Sem status'}, Responsável: ${usuario.nome}`"
-              role="button"
-              tabindex="0"
+              v-for="(linha, linhaIndex) in usuario.linhas" 
+              :key="`linha-${linhaIndex}`"
+              class="timeline-row"
+              :style="{ top: `${linhaIndex * 30 + 5}px` }"
             >
-              <span class="activity-name">{{ atividade.nome || 'Sem nome' }}</span>
+              <div 
+                v-for="atividade in linha" 
+                :key="atividade.id"
+                class="activity-bar"
+                :class="{ 'sem-datas': calcularPosicaoAtividade(atividade).semDatas }"
+                :style="{
+                  left: calcularPosicaoAtividade(atividade).left,
+                  width: calcularPosicaoAtividade(atividade).width,
+                  backgroundColor: obterCorStatus(atividade.status)
+                }"
+                :title="criarTooltip(atividade)"
+                :aria-label="`Projeto: ${atividade.nomeProjeto}, Atividade: ${atividade.nome || 'Sem nome'}, Status: ${atividade.status || 'Sem status'}, Responsável: ${usuario.nome}`"
+                role="button"
+                tabindex="0"
+                @click="onActivityClick(atividade, usuario)"
+                @keydown.enter="onActivityClick(atividade, usuario)"
+                @keydown.space="onActivityClick(atividade, usuario)"
+              >
+                <span class="project-name">{{ atividade.nomeProjeto }}</span>
+                <span class="activity-name">{{ atividade.nome || 'Sem nome' }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -56,38 +75,45 @@ export default {
   },
   computed: {
     processedUsers() {
-      // Validação de dados de entrada
-      if (!this.content.usuarios || !this.content.atividades) {
-        console.warn('Gantt: Dados de usuários ou atividades não fornecidos');
-        return [];
-      }
-
       const usuarios = Array.isArray(this.content.usuarios) ? this.content.usuarios : [];
       const atividades = Array.isArray(this.content.atividades) ? this.content.atividades : [];
+      const projetos = Array.isArray(this.content.projetos) ? this.content.projetos : [];
 
-      if (usuarios.length === 0 && atividades.length === 0) {
-        return [];
-      }
+      // Criar mapa de projetos por ID
+      const projetosMap = {};
+      projetos.forEach(projeto => {
+        if (projeto && projeto.id) {
+          projetosMap[projeto.id] = projeto;
+        }
+      });
 
-      // Criar mapa de usuários por ID
+      // Criar mapa de usuários por ID - MOSTRAR TODOS OS USUÁRIOS
       const usuariosMap = {};
       usuarios.forEach(usuario => {
         if (usuario && usuario.id && usuario.ativo !== false) {
           usuariosMap[usuario.id] = {
             id: usuario.id,
             nome: usuario.nome || 'Usuário sem nome',
-            atividades: []
+            atividades: [],
+            linhas: [] // Para organizar atividades em múltiplas linhas
           };
         }
       });
 
-      // Agrupar atividades por usuário
+      // Agrupar atividades por usuário e adicionar informações do projeto
       const atividadesSemUsuario = [];
       atividades.forEach(atividade => {
         if (!atividade) {
           console.warn('Gantt: Atividade inválida encontrada', atividade);
           return;
         }
+
+        // Adicionar informações do projeto
+        const projeto = projetosMap[atividade.projeto];
+        const atividadeComProjeto = {
+          ...atividade,
+          nomeProjeto: projeto ? projeto.nome : 'Projeto não encontrado'
+        };
 
         // Validar datas se existirem
         if (atividade.data_inicio && atividade.data_previsao_termino) {
@@ -102,22 +128,29 @@ export default {
         }
 
         if (atividade.assigned_to && usuariosMap[atividade.assigned_to]) {
-          usuariosMap[atividade.assigned_to].atividades.push(atividade);
+          usuariosMap[atividade.assigned_to].atividades.push(atividadeComProjeto);
         } else {
-          atividadesSemUsuario.push(atividade);
+          atividadesSemUsuario.push(atividadeComProjeto);
         }
       });
 
-      // Converter para array e filtrar usuários com atividades
-      const result = Object.values(usuariosMap).filter(usuario => usuario.atividades.length > 0);
+      // Organizar atividades em linhas para evitar sobreposição
+      Object.values(usuariosMap).forEach(usuario => {
+        usuario.linhas = this.organizarAtividadesEmLinhas(usuario.atividades);
+      });
+
+      // Converter para array - INCLUIR TODOS OS USUÁRIOS
+      const result = Object.values(usuariosMap);
 
       // Adicionar grupo "Não Atribuído" se houver atividades sem usuário
       if (atividadesSemUsuario.length > 0) {
-        result.push({
+        const usuarioNaoAtribuido = {
           id: 'nao-atribuido',
           nome: 'Não Atribuído',
-          atividades: atividadesSemUsuario
-        });
+          atividades: atividadesSemUsuario,
+          linhas: this.organizarAtividadesEmLinhas(atividadesSemUsuario)
+        };
+        result.push(usuarioNaoAtribuido);
       }
 
       return result;
@@ -270,6 +303,79 @@ export default {
     obterCorStatus(status) {
       return this.statusColors[status] || '#6B7280'; // Cor padrão para status não reconhecidos
     },
+
+    organizarAtividadesEmLinhas(atividades) {
+      if (!atividades || atividades.length === 0) return [];
+
+      const linhas = [];
+      
+      // Ordenar atividades por data de início
+      const atividadesOrdenadas = [...atividades].sort((a, b) => {
+        const dataA = a.data_inicio ? new Date(a.data_inicio) : new Date(0);
+        const dataB = b.data_inicio ? new Date(b.data_inicio) : new Date(0);
+        return dataA - dataB;
+      });
+
+      atividadesOrdenadas.forEach(atividade => {
+        let linhaEncontrada = false;
+        
+        // Tentar colocar na primeira linha disponível
+        for (let i = 0; i < linhas.length; i++) {
+          if (this.podeAdicionarNaLinha(atividade, linhas[i])) {
+            linhas[i].push(atividade);
+            linhaEncontrada = true;
+            break;
+          }
+        }
+        
+        // Se não encontrou linha disponível, criar nova linha
+        if (!linhaEncontrada) {
+          linhas.push([atividade]);
+        }
+      });
+
+      return linhas;
+    },
+
+    podeAdicionarNaLinha(novaAtividade, linha) {
+      const novaInicio = novaAtividade.data_inicio ? new Date(novaAtividade.data_inicio) : null;
+      const novaFim = novaAtividade.data_previsao_termino ? new Date(novaAtividade.data_previsao_termino) : null;
+
+      if (!novaInicio) return true; // Atividades sem data podem ser adicionadas
+
+      return !linha.some(atividade => {
+        const inicio = atividade.data_inicio ? new Date(atividade.data_inicio) : null;
+        const fim = atividade.data_previsao_termino ? new Date(atividade.data_previsao_termino) : null;
+
+        if (!inicio) return false;
+
+        // Verificar sobreposição
+        const fimComparacao = fim || inicio;
+        const novaFimComparacao = novaFim || novaInicio;
+
+        return !(novaFimComparacao < inicio || novaInicio > fimComparacao);
+      });
+    },
+
+    onActivityClick(atividade, usuario) {
+      this.$emit('onActivityClick', {
+        atividade,
+        usuario,
+        projeto: atividade.nomeProjeto
+      });
+    },
+
+    criarTooltip(atividade) {
+      const dataInicio = atividade.data_inicio ? 
+        new Date(atividade.data_inicio).toLocaleDateString('pt-BR') : 'Não definida';
+      const dataFim = atividade.data_previsao_termino ? 
+        new Date(atividade.data_previsao_termino).toLocaleDateString('pt-BR') : 'Não definida';
+      
+      return `${atividade.nomeProjeto} - ${atividade.nome || 'Atividade sem nome'}
+Status: ${atividade.status || 'Sem status'}
+Início: ${dataInicio}
+Previsão: ${dataFim}`;
+    },
   },
 };
 </script>
@@ -324,29 +430,46 @@ export default {
   max-height: calc(100% - 48px);
 }
 
-.gantt-row {
+.gantt-user-section {
   display: grid;
   grid-template-columns: 200px 1fr;
   border-bottom: 1px solid #e5e7eb;
-  min-height: 40px;
+  min-height: 50px;
 }
 
-.user-label {
+.user-info {
   padding: 8px 16px;
   border-right: 1px solid #e5e7eb;
   background: #f9fafb;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.user-label {
   font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.activity-count {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.user-timeline {
+  position: relative;
+  overflow-x: auto;
+  width: 800px;
+  min-height: 50px;
 }
 
 .timeline-row {
-  position: relative;
-  padding: 4px 8px;
-  display: flex;
-  align-items: center;
-  overflow-x: auto;
-  width: 800px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 28px;
+  padding: 2px 8px;
 }
 
 .activity-bar {
@@ -354,33 +477,56 @@ export default {
   height: 24px;
   border-radius: 4px;
   display: flex;
-  align-items: center;
-  padding: 0 8px;
+  flex-direction: column;
+  justify-content: center;
+  padding: 2px 8px;
   cursor: pointer;
-  transition: opacity 0.2s;
-  margin-bottom: 2px;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .activity-bar:hover {
-  opacity: 0.8;
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.activity-bar:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
 .activity-bar.sem-datas {
   border-radius: 50%;
   padding: 0;
   justify-content: center;
+  align-items: center;
+}
+
+.project-name {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  line-height: 1;
 }
 
 .activity-name {
-  font-size: 12px;
+  font-size: 11px;
   color: white;
-  font-weight: 500;
+  font-weight: 400;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+  margin-top: 1px;
 }
 
+.activity-bar.sem-datas .project-name,
 .activity-bar.sem-datas .activity-name {
   display: none;
 }
@@ -391,17 +537,20 @@ export default {
     grid-template-columns: 150px 1fr;
   }
   
-  .gantt-row {
+  .gantt-user-section {
     grid-template-columns: 150px 1fr;
   }
   
   .users-column,
   .user-label {
     font-size: 12px;
-    padding: 8px 12px;
   }
   
-  .timeline-row {
+  .user-info {
+    padding: 6px 12px;
+  }
+  
+  .user-timeline {
     width: 600px;
   }
   
@@ -415,17 +564,20 @@ export default {
     grid-template-columns: 120px 1fr;
   }
   
-  .gantt-row {
+  .gantt-user-section {
     grid-template-columns: 120px 1fr;
   }
   
   .users-column,
   .user-label {
     font-size: 11px;
-    padding: 6px 8px;
   }
   
-  .timeline-row {
+  .user-info {
+    padding: 4px 8px;
+  }
+  
+  .user-timeline {
     width: 400px;
   }
   
@@ -435,38 +587,42 @@ export default {
   
   .activity-bar {
     height: 20px;
-    padding: 0 4px;
+    padding: 1px 4px;
+  }
+  
+  .project-name {
+    font-size: 9px;
   }
   
   .activity-name {
-    font-size: 10px;
+    font-size: 9px;
   }
 }
 
 /* Scroll customizado */
 .gantt-body::-webkit-scrollbar,
 .timeline-header::-webkit-scrollbar,
-.timeline-row::-webkit-scrollbar {
+.user-timeline::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .gantt-body::-webkit-scrollbar-track,
 .timeline-header::-webkit-scrollbar-track,
-.timeline-row::-webkit-scrollbar-track {
+.user-timeline::-webkit-scrollbar-track {
   background: #f1f5f9;
 }
 
 .gantt-body::-webkit-scrollbar-thumb,
 .timeline-header::-webkit-scrollbar-thumb,
-.timeline-row::-webkit-scrollbar-thumb {
+.user-timeline::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
 
 .gantt-body::-webkit-scrollbar-thumb:hover,
 .timeline-header::-webkit-scrollbar-thumb:hover,
-.timeline-row::-webkit-scrollbar-thumb:hover {
+.user-timeline::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
