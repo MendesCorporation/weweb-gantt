@@ -398,7 +398,7 @@ export default {
 
       if (modo === 'mes') {
         // Para visualização mensal, mostrar os 12 meses (0-11 = Jan-Dez)
-        console.log('🔍 Iniciando geração de marcadores mensais...');
+
         for (let mes = 0; mes <= 11; mes++) {
           const dataAtual = new Date(this.currentDate.getFullYear(), mes, 1);
           // Posição simples: cada mês ocupa 150px
@@ -414,8 +414,7 @@ export default {
             showLine: true
           });
           
-          // Debug para todos os meses
-          console.log(`Mês ${mes} (${label}): posição ${position}`);
+
         }
       } else {
         // Para visualizações dia e semana - CORRIGIDO para mostrar todos os dias
@@ -869,6 +868,10 @@ Previsão: ${dataFim}`;
   padding: 12px 16px;
   font-weight: 600;
   border-right: 1px solid;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background-color: inherit;
 }
 
 .timeline-header-wrapper {
@@ -880,7 +883,7 @@ Previsão: ${dataFim}`;
   padding: 12px 16px;
   font-weight: 600;
   position: relative;
-  overflow-x: auto;
+  overflow-x: hidden; /* Sem scroll próprio - sincronizado com body */
   background-color: inherit !important;
 }
 
@@ -929,6 +932,10 @@ Previsão: ${dataFim}`;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background-color: inherit;
 }
 
 .user-label {
