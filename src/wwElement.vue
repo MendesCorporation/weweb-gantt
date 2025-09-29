@@ -383,8 +383,8 @@ export default {
     statusColors() {
       return {
         'Pendente': this.content.corPendente || '#9CA3AF',
-        'Em desenvolvimento': this.content.corEmDesenvolvimento || '#3B82F6',
-        'Em validação': this.content.corEmValidacao || '#F59E0B',
+        'Em Andamento': this.content.corEmDesenvolvimento || '#3B82F6',
+        'Em Validação': this.content.corEmValidacao || '#F59E0B',
         'Finalizada': this.content.corFinalizada || '#10B981'
       };
     },
